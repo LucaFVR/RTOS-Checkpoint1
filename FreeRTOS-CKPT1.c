@@ -1,0 +1,66 @@
+#include <stdio.h>
+#include <inttypes.h>
+#include "sdkconfig.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "esp_chip_info.h"
+#include "esp_flash.h"
+#include "esp_system.h"
+#include "freertos/queue.h"
+#include "freertos/semphr.h"
+ 
+static SemaphoreHandle_t semTask1;
+static SemaphoreHandle_t semTask2;
+static SemaphoreHandle_t semTask3;
+ 
+#define NOME_ALUNO "LUCA"
+ 
+// Task 1: Imprime, espera 1s e liberar para a task 2
+void task1(void *pvParameters) {
+    while (true) {
+        xSemaphoreTake(semTask1, portMAX_DELAY);
+        printf("Tarefa 1 Executou - %s\n", NOME_ALUNO);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        xSemaphoreGive(semTask2);
+    }
+}
+ 
+// Task 2: Imprime, espera 1s e liberar para a task 3
+void task2(void *pvParameters) {
+    while (true) {
+        xSemaphoreTake(semTask2, portMAX_DELAY);
+        printf("Tarefa 2 Executou - %s\n", NOME_ALUNO);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        xSemaphoreGive(semTask3);
+    }
+}
+ 
+// Task 3: Imprime, espera 1s e liberar e volta para a task 1
+void task3(void *pvParameters) {
+    while (true) {
+        xSemaphoreTake(semTask3, portMAX_DELAY);
+        printf("Tarefa 3 Executou - %s\n", NOME_ALUNO);
+        vTaskDelay(pdMS_TO_TICKS(1000));
+        xSemaphoreGive(semTask1);
+    }
+}
+ 
+ 
+void app_main(void)
+{
+semTask1 = xSemaphoreCreateBinary();
+semTask2 = xSemaphoreCreateBinary();
+semTask3 = xSemaphoreCreateBinary();
+ 
+if (!semTask1 || !semTask2 || !semTask3) {
+        printf("Falha ao criar semáforos\n");
+        return;
+}
+ 
+xSemaphoreGive(semTask1);
+ 
+xTaskCreate(task1, "Task1", 2048, NULL, 5, NULL);
+xTaskCreate(task2, "Task2", 2048, NULL, 5, NULL);
+xTaskCreate(task3, "Task3", 2048, NULL, 5, NULL);
+ 
+}
